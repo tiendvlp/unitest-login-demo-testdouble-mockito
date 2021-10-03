@@ -10,11 +10,11 @@ import domain.ports.testonly.testonly.UserRepository;
 import login.LoginWithGoogleUseCase.Result;
 import login.LoginWithGoogleUseCase.Result.*;
 import login_convention.EmailValidator;
-import org.junit.Before;
-import org.junit.Test;
+import org.testng.Assert;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertThat;
+import static common.TestConfig.GROUP.*;
 
 public class LoginWithGoogleUseCaseTest {
     private static final String ACCESS_TOKEN = "ACCESS_TOKEN";
@@ -44,7 +44,7 @@ public class LoginWithGoogleUseCaseTest {
     private UserRepositoryTdImp userRepository;
     private EmailValidatorTdImp emailValidator;
 
-    @Before
+    @BeforeMethod(alwaysRun = true)
     public void setup () {
         googleGetUserEndpointTd = new GoogleGetUserEndpointTdImp();
         userRepository = new UserRepositoryTdImp();
@@ -52,65 +52,65 @@ public class LoginWithGoogleUseCaseTest {
         SUT = new LoginWithGoogleUseCase(googleGetUserEndpointTd, userRepository,emailValidator);
     }
 
-    @Test
+    @Test ()
     public void loginWithGoogle_correctAccessToken_successReturned () {
         Result result = SUT.executes(ACCESS_TOKEN);
-        assertThat(result, instanceOf(Success.class));
+        Assert.assertTrue(result instanceof Success);
     }
 
     @Test
     public void loginWithGoogle_accessTokenPassedToEndPoint () {
         SUT.executes(ACCESS_TOKEN);
-        assertThat(googleGetUserEndpointTd.accessToken, is(ACCESS_TOKEN));
+        Assert.assertEquals(googleGetUserEndpointTd.accessToken, ACCESS_TOKEN);
     }
 
     @Test
     public void loginWithGoogle_endPointGeneralError_GeneralErrorReturned () {
         googleGetUserEndpointTd.isGeneralError = true;
         Result result = SUT.executes(ACCESS_TOKEN);
-        assertThat(result, instanceOf(GeneralError.class));
+        Assert.assertTrue(result instanceof GeneralError);
     }
 
     @Test
     public void loginWithGoogle_endPointAuthError_AuthErrorReturned () {
         googleGetUserEndpointTd.isAuthError = true;
         Result result = SUT.executes(ACCESS_TOKEN);
-        assertThat(result, instanceOf(AuthError.class));
+        Assert.assertTrue(result instanceof AuthError);
     }
 
     @Test
     public void loginWithGoogle_endPointConnectionExceptionOccurs_noInteractionWithRepository () {
         googleGetUserEndpointTd.isConnectionError = true;
         SUT.executes(ACCESS_TOKEN);
-        assertThat(userRepository.user, is(NON_INITIALIZE_USER));
+        Assert.assertEquals(userRepository.user, NON_INITIALIZE_USER);
     }
 
     @Test
     public void loginWithGoogle_endPointGeneralError_noInteractionWithRepository () {
         googleGetUserEndpointTd.isGeneralError = true;
         SUT.executes(ACCESS_TOKEN);
-        assertThat(userRepository.user, is(NON_INITIALIZE_USER));
+        Assert.assertEquals(userRepository.user, NON_INITIALIZE_USER);
     }
 
     @Test
     public void loginWithGoogle_endPointAuthError_noInteractionWithRepository () {
         googleGetUserEndpointTd.isAuthError = true;
         SUT.executes(ACCESS_TOKEN);
-        assertThat(userRepository.user, is(NON_INITIALIZE_USER));
+        Assert.assertEquals(userRepository.user, NON_INITIALIZE_USER);
     }
 
     @Test
     public void loginWithGoogle_userRepositoryConnectionExceptionOccurs_GeneralErrorReturned () {
         userRepository.isConnectionExceptionOccurs = true;
         Result result = SUT.executes(ACCESS_TOKEN);
-        assertThat(result, instanceOf(GeneralError.class));
+        Assert.assertTrue(result instanceof GeneralError);
     }
 
     @Test
     public void loginWithGoogle_endPointConnectionExceptionOccurs_GeneralErrorReturned () {
         googleGetUserEndpointTd.isConnectionError = true;
         Result result = SUT.executes(ACCESS_TOKEN);
-        assertThat(result, instanceOf(GeneralError.class));
+        Assert.assertTrue(result instanceof GeneralError);
     }
 
     @Test
@@ -118,7 +118,7 @@ public class LoginWithGoogleUseCaseTest {
         userRepository.isUserNotfound = true;
         emailValidator.isFptEmail = false;
         Result result = SUT.executes(ACCESS_TOKEN);
-        assertThat(result, instanceOf(NotAllowed.class));
+        Assert.assertTrue(result instanceof NotAllowed);
     }
 
     @Test
@@ -126,16 +126,16 @@ public class LoginWithGoogleUseCaseTest {
         userRepository.isAdmin = true;
         emailValidator.isFptEmail = false;
         Result result = SUT.executes(ACCESS_TOKEN);
-        assertThat(result, instanceOf(Success.class));
+        Assert.assertTrue(result instanceof Success);
     }
 
-    @Test
+    @Test(groups = {HAS_INTERACTION_WITH_USER_REPOSITORY})
     public void loginWithGoogle_accessTokenIsFptButNotInDb_hasInteractionWithUserRepositoryAddMethod () {
         emailValidator.isFptEmail = true;
         userRepository.isUserNotfound = true;
         userRepository.isAdmin = false;
         SUT.executes(ACCESS_TOKEN);
-        assertThat(userRepository.user, equalTo(NOT_ADMIN_USER ));
+        Assert.assertEquals(userRepository.user, NOT_ADMIN_USER);
     }
 
     @Test
@@ -144,7 +144,7 @@ public class LoginWithGoogleUseCaseTest {
         userRepository.isUserNotfound = true;
         userRepository.isAdmin = false;
         SUT.executes(ACCESS_TOKEN);
-        assertThat(userRepository.user, is(NON_INITIALIZE_USER));
+        Assert.assertEquals(userRepository.user, NON_INITIALIZE_USER);
     }
 
     @Test
@@ -152,15 +152,15 @@ public class LoginWithGoogleUseCaseTest {
         userRepository.isUserNotfound = true;
         emailValidator.isFptEmail = true;
         SUT.executes(ACCESS_TOKEN);
-        assertThat(userRepository.user.getFullName(), equalTo(GOOGLE_POJO.getFullName()));
-        assertThat(userRepository.user.getEmail(), equalTo(GOOGLE_POJO.getEmail()));
+        Assert.assertEquals(userRepository.user.getFullName(), GOOGLE_POJO.getFullName());
+        Assert.assertEquals(userRepository.user.getEmail(), GOOGLE_POJO.getEmail());
     }
 
     @Test
     public void loginWithGoogle_successReturned_successUserMatchWithRepositoryUserData () {
         Result result = SUT.executes(ACCESS_TOKEN);
-        assertThat(result, instanceOf(Success.class));
-        assertThat(((Success)result).user, equalTo(NOT_ADMIN_USER));
+        Assert.assertTrue(result instanceof Success);
+        Assert.assertEquals(((Success)result).user, NOT_ADMIN_USER);
     }
 
     private static class GoogleGetUserEndpointTdImp implements GoogleGetUserEndpoint {
