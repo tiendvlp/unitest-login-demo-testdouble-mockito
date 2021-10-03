@@ -19,6 +19,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import static common.TestConfig.GROUP.HAS_INTERACTION_WITH_USER_REPOSITORY;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.*;
@@ -157,7 +158,7 @@ public class StillLoginWithGoogleUseCaseTestButWithMockito {
         Assert.assertTrue(result instanceof Success);
     }
 
-    @Test
+    @Test(groups = {HAS_INTERACTION_WITH_USER_REPOSITORY})
     public void loginWithGoogle_accessTokenIsFptButNotInDb_hasInteractionWithUserRepositoryAddMethod () throws ConnectionException {
         when(emailValidator.check(EMAIL)).thenReturn(new EmailValidator.Result(NOT_ADMIN_ROLE,true));
         when(userRepository.getUserByEmail(EMAIL)).thenReturn(NON_INITIALIZE_USER);
