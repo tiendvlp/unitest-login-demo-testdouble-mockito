@@ -23,6 +23,8 @@ import static common.TestConfig.GROUP.HAS_INTERACTION_WITH_USER_REPOSITORY;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class StillLoginWithGoogleUseCaseTestButWithMockito {
     private static final String ACCESS_TOKEN = "ACCESS_TOKEN";
@@ -34,17 +36,14 @@ public class StillLoginWithGoogleUseCaseTestButWithMockito {
     private static final String NAME = "NAME";
     private static final UserStatus ACTIVE_STATUS = new UserStatus(UserStatus.STATUS.ACTIVE);
     private static final UserRole NOT_ADMIN_ROLE = new UserRole(UserRole.TYPE.STUDENT);
-    private static final UserRole ADMIN_ROLE = new UserRole(UserRole.TYPE.ADMIN);
     private static final UserEntity NON_INITIALIZE_USER = null;
-    private static final UserEntity NOT_ADMIN_USER;
-    private static final UserEntity ADMIN_USER;
+    private static final UserEntity USER;
     private static final GooglePojo GOOGLE_POJO;
 
     static {
         GOOGLE_POJO = new GooglePojo(ID,EMAIL, true,NAME,GIVEN_NAME, FAMILY_NAME, "","");
-        FULL_NAME = GOOGLE_POJO.getFullName();
-        NOT_ADMIN_USER = new UserEntity(ID,EMAIL, FULL_NAME, NOT_ADMIN_ROLE, ACTIVE_STATUS);
-        ADMIN_USER = new UserEntity(ID,EMAIL, FULL_NAME, ADMIN_ROLE, ACTIVE_STATUS);
+        FULL_NAME = FAMILY_NAME + " " + GIVEN_NAME;
+        USER = new UserEntity(ID,EMAIL, FULL_NAME, NOT_ADMIN_ROLE, ACTIVE_STATUS);
     }
 
     private LoginWithGoogleUseCase SUT;
@@ -52,7 +51,23 @@ public class StillLoginWithGoogleUseCaseTestButWithMockito {
     private UserRepository userRepository;
     private EmailValidator emailValidator;
 
-    @BeforeMethod
+    private void endpointGeneralError() throws ConnectionException {
+        when(googleGetUserEndpoint.getUser(ACCESS_TOKEN)).thenReturn(new GoogleGetUserEndpoint.Result.GeneralError());
+    }
+
+    private void endPointAuthError() throws ConnectionException {
+        when(googleGetUserEndpoint.getUser(ACCESS_TOKEN)).thenReturn(new GoogleGetUserEndpoint.Result.AuthError());
+    }
+
+    private void endPointConnectionExceptionOccurs() throws ConnectionException {
+        when(googleGetUserEndpoint.getUser(ACCESS_TOKEN)).thenThrow(new ConnectionException(""));
+    }
+
+    private void userRepositoryConnectionExceptionOccurs() throws ConnectionException {
+        when (userRepository.getUserByEmail(EMAIL)).thenThrow(new ConnectionException(""));
+    }
+
+    @BeforeMethod(alwaysRun = true)
     public void setup () throws ConnectionException {
         googleGetUserEndpoint = mock(GoogleGetUserEndpoint.class);
         userRepository = mock(UserRepository.class);
@@ -67,7 +82,7 @@ public class StillLoginWithGoogleUseCaseTestButWithMockito {
     public void loginWithGoogle_correctAccessToken_successReturned () throws ConnectionException {
         when(emailValidator.check(ACCESS_TOKEN)).thenReturn(new EmailValidator.Result(NOT_ADMIN_ROLE, true));
         Result result = SUT.executes(ACCESS_TOKEN);
-        Assert.assertTrue(result instanceof Success);
+        assertTrue(result instanceof Success);
     }
 
     @Test
@@ -75,41 +90,31 @@ public class StillLoginWithGoogleUseCaseTestButWithMockito {
         ArgumentCaptor<String> ac = ArgumentCaptor.forClass(String.class);
         SUT.executes(ACCESS_TOKEN);
         verify(googleGetUserEndpoint,times(1)).getUser(ac.capture());
-        Assert.assertEquals(ac.getAllValues().get(0), ACCESS_TOKEN);
+        assertEquals(ac.getAllValues().get(0), ACCESS_TOKEN);
     }
 
     @Test
-    public void loginWithGoogle_endPointGeneralError_GeneralErrorReturned () throws ConnectionException {
+    public void loginWithGoogle_endPointGeneralError_generalErrorReturned () throws ConnectionException {
         endpointGeneralError();
         Result result = SUT.executes(ACCESS_TOKEN);
-        Assert.assertTrue(result instanceof GeneralError);
+        assertTrue(result instanceof GeneralError);
 
-    }
-
-    private void endpointGeneralError() throws ConnectionException {
-        when(googleGetUserEndpoint.getUser(ACCESS_TOKEN)).thenReturn(new GoogleGetUserEndpoint.Result.GeneralError());
     }
 
     @Test
-    public void loginWithGoogle_endPointAuthError_AuthErrorReturned () throws ConnectionException {
+    public void loginWithGoogle_endPointAuthError_authErrorReturned () throws ConnectionException {
         endPointAuthError();
         Result result = SUT.executes(ACCESS_TOKEN);
-        Assert.assertTrue(result instanceof AuthError);
+        assertTrue(result instanceof AuthError);
     }
 
-    private OngoingStubbing<GoogleGetUserEndpoint.Result> endPointAuthError() throws ConnectionException {
-        return when(googleGetUserEndpoint.getUser(ACCESS_TOKEN)).thenReturn(new GoogleGetUserEndpoint.Result.AuthError());
-    }
+
 
     @Test
     public void loginWithGoogle_endPointConnectionExceptionOccurs_noInteractionWithRepository () throws ConnectionException {
         endPointConnectionExceptionOccurs();
         SUT.executes(ACCESS_TOKEN);
         verifyNoMoreInteractions(userRepository);
-    }
-
-    private OngoingStubbing<GoogleGetUserEndpoint.Result> endPointConnectionExceptionOccurs() throws ConnectionException {
-        return when(googleGetUserEndpoint.getUser(ACCESS_TOKEN)).thenThrow(new ConnectionException(""));
     }
 
     @Test
@@ -127,35 +132,32 @@ public class StillLoginWithGoogleUseCaseTestButWithMockito {
     }
 
     @Test
-    public void loginWithGoogle_userRepositoryConnectionExceptionOccurs_GeneralErrorReturned () throws ConnectionException {
+    public void loginWithGoogle_userRepositoryConnectionExceptionOccurs_generalErrorReturned () throws ConnectionException {
         userRepositoryConnectionExceptionOccurs();
         Result result = SUT.executes(ACCESS_TOKEN);
-        Assert.assertTrue(result instanceof GeneralError);
-    }
-
-    private OngoingStubbing<UserEntity> userRepositoryConnectionExceptionOccurs() throws ConnectionException {
-        return when (userRepository.getUserByEmail(EMAIL)).thenThrow(new ConnectionException(""));
+        assertTrue(result instanceof GeneralError);
     }
 
     @Test
-    public void loginWithGoogle_endPointConnectionExceptionOccurs_GeneralErrorReturned () throws ConnectionException {
+    public void loginWithGoogle_endPointConnectionExceptionOccurs_generalErrorReturned () throws ConnectionException {
         endPointConnectionExceptionOccurs();
         Result result = SUT.executes(ACCESS_TOKEN);
-        Assert.assertTrue(result instanceof GeneralError);
+        assertTrue(result instanceof GeneralError);
     }
 
     @Test
-    public void loginWithGoogle_accessTokenNotFptAndNotAdmin_NotAllowReturned () {
+    public void loginWithGoogle_accessTokenNotFptAndNotInDb_notAllowReturned () {
         when(emailValidator.check(EMAIL)).thenReturn(new EmailValidator.Result(NOT_ADMIN_ROLE, false));
         Result result = SUT.executes(ACCESS_TOKEN);
-        Assert.assertTrue(result instanceof NotAllowed);
+        assertTrue(result instanceof NotAllowed);
     }
 
     @Test
-    public void loginWithGoogle_accessTokenNotFptButAdmin_successReturned () {
-        when(emailValidator.check(EMAIL)).thenReturn(new EmailValidator.Result(ADMIN_ROLE, true));
+    public void loginWithGoogle_accessTokenNotFptButInDb_successReturned () throws ConnectionException {
+        when(userRepository.addUser(anyString(),anyString(),anyString(),any(), any())).thenReturn(USER);
+        when(emailValidator.check(EMAIL)).thenReturn(new EmailValidator.Result(NOT_ADMIN_ROLE, true));
         Result result = SUT.executes(ACCESS_TOKEN);
-        Assert.assertTrue(result instanceof Success);
+        assertTrue(result instanceof Success);
     }
 
     @Test(groups = {HAS_INTERACTION_WITH_USER_REPOSITORY})
@@ -179,15 +181,15 @@ public class StillLoginWithGoogleUseCaseTestButWithMockito {
         ArgumentCaptor<String> ac = ArgumentCaptor.forClass(String.class);
         SUT.executes(ACCESS_TOKEN);
         verify(userRepository,times(1)).addUser(ac.capture(), ac.capture(), anyString(), any(), any());
-        Assert.assertEquals(ac.getAllValues().get(0), EMAIL);
-        Assert.assertEquals(ac.getAllValues().get(1), FULL_NAME);
+        assertEquals(ac.getAllValues().get(0), EMAIL);
+        assertEquals(ac.getAllValues().get(1), FULL_NAME);
     }
 
     @Test
     public void loginWithGoogle_successReturned_successUserMatchWithRepositoryUserData () throws ConnectionException {
-        when(userRepository.getUserByEmail(EMAIL)).thenReturn(NOT_ADMIN_USER);
+        when(userRepository.getUserByEmail(EMAIL)).thenReturn(USER);
         Result result = SUT.executes(ACCESS_TOKEN);
-        Assert.assertTrue(result instanceof Success);
-        Assert.assertEquals(((Success)result).user, NOT_ADMIN_USER);
+        assertTrue(result instanceof Success);
+        assertEquals(((Success)result).user, USER);
     }
 }

@@ -6,7 +6,9 @@ import domain.ports.errors.ConnectionException;
 import domain.ports.google_api.GoogleGetUserEndpoint;
 import domain.ports.google_api.GooglePojo;
 import domain.ports.testonly.testonly.UserRepository;
+import login.LoginWithGoogleUseCase.Result.*;
 import login_convention.EmailValidator;
+
 
 public class LoginWithGoogleUseCase {
     public static class Result {
@@ -25,26 +27,26 @@ public class LoginWithGoogleUseCase {
         }
     }
 
-    private final GoogleGetUserEndpoint loginApi;
+    private final GoogleGetUserEndpoint googleGetUserEndpoint;
     private final UserRepository userRepository;
     private final EmailValidator emailValidator;
 
     public LoginWithGoogleUseCase(GoogleGetUserEndpoint loginApi, UserRepository userRepository, EmailValidator emailValidator) {
-        this.loginApi = loginApi;
+        this.googleGetUserEndpoint = loginApi;
         this.userRepository = userRepository;
         this.emailValidator = emailValidator;
     }
 
     public Result executes(String googleAccessToken) {
         try {
-            GoogleGetUserEndpoint.Result getUserResult = loginApi.getUser(googleAccessToken);
+            GoogleGetUserEndpoint.Result getUserResult = googleGetUserEndpoint.getUser(googleAccessToken);
 
             if (getUserResult instanceof GoogleGetUserEndpoint.Result.AuthError) {
-                return new Result.AuthError();
+                return new AuthError();
             }
 
             if (getUserResult instanceof GoogleGetUserEndpoint.Result.GeneralError) {
-                return new Result.GeneralError();
+                return new GeneralError();
             }
             GooglePojo pojo = ((GoogleGetUserEndpoint.Result.Success) getUserResult).googlePojo;
             String fullName = pojo.getFullName();
@@ -52,7 +54,7 @@ public class LoginWithGoogleUseCase {
 
             UserEntity user = userRepository.getUserByEmail(pojo.getEmail());
             if (user != null) {
-                return new Result.Success(user);
+                return new Success(user);
             }
 
             EmailValidator.Result validatorResult = emailValidator.check(email);
@@ -60,9 +62,9 @@ public class LoginWithGoogleUseCase {
                 return new Result.NotAllowed();
             }
             user = userRepository.addUser(email, fullName, pojo.getPicture(), validatorResult.role, new UserStatus(UserStatus.STATUS.ACTIVE));
-            return new Result.Success(user);
+            return new Success(user);
         } catch (ConnectionException ex) {
-            return new Result.GeneralError();
+            return new GeneralError();
         }
     }
 }
