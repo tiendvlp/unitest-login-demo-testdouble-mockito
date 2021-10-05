@@ -9,6 +9,12 @@ import domain.ports.testonly.testonly.UserRepository;
 import login.LoginWithGoogleUseCase.Result.*;
 import login_convention.EmailValidator;
 
+/**
+ * Accept google access token then send this access token to get the user info from Google
+ * If user is already exist in db then allow them to access
+ * If user is not in db, they have to have fpt email to access
+ * And if user has Fpt email but not in db then add them to db
+ * */
 
 public class LoginWithGoogleUseCase {
     public static class Result {
